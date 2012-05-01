@@ -1,0 +1,153 @@
+/*
+* Copyright (c) 2006-2009 Erin Catto http://www.gphysics.com
+*
+* This software is provided 'as-is', without any express or implied
+* warranty.  In no event will the authors be held liable for any damages
+* arising from the use of this software.
+* Permission is granted to anyone to use this software for any purpose,
+* including commercial applications, and to alter it and redistribute it
+* freely, subject to the following restrictions:
+* 1. The origin of this software must not be misrepresented; you must not
+* claim that you wrote the original software. If you use this software
+* in a product, an acknowledgment in the product documentation would be
+* appreciated but is not required.
+* 2. Altered source versions must be plainly marked as such, and must not be
+* misrepresented as being the original software.
+* 3. This notice may not be removed or altered from any source distribution.
+*/
+
+#ifndef B2_BODY_H
+#define B2_BODY_H
+
+#include <Box2D/Common/b2Math.h>
+#include <Box2D/Collision/Shapes/b2Shape.h>
+#include <memory>
+
+class b2Fixture;
+class b2Joint;
+class b2Contact;
+class b2Controller;
+class b2World;
+struct b2FixtureDef;
+struct b2JointEdge;
+struct b2ContactEdge;
+
+/// The body type.
+/// static: zero mass, zero velocity, may be manually moved
+/// kinematic: zero mass, non-zero velocity set by user, moved by solver
+/// dynamic: positive mass, non-zero velocity determined by forces, moved by solver
+enum b2BodyType
+{
+	b2_staticBody = 0,
+	b2_kinematicBody,
+	b2_dynamicBody,
+};
+
+/// A body definition holds all the data needed to construct a rigid body.
+/// You can safely re-use body definitions. Shapes are added to a body after construction.
+struct b2BodyDef
+{
+	/// This constructor sets the body definition default values.
+	b2BodyDef()
+	{
+		userData = NULL;
+		position.Set(0.0f, 0.0f);
+		angle = 0.0f;
+		linearVelocity.Set(0.0f, 0.0f);
+		angularVelocity = 0.0f;
+		linearDamping = 0.0f;
+		angularDamping = 0.0f;
+		allowSleep = true;
+		awake = true;
+		fixedRotation = false;
+		bullet = false;
+		type = b2_staticBody;
+		active = true;
+		inertiaScale = 1.0f;
+	}
+
+	/// The body type: static, kinematic, or dynamic.
+	/// Note: if a dynamic body would have zero mass, the mass is set to one.
+	b2BodyType type;
+
+	/// The world position of the body. Avoid creating bodies at the origin
+	/// since this can lead to many overlapping shapes.
+	b2Vec2 position;
+
+	/// The world angle of the body in radians.
+	float32 angle;
+
+	/// The linear velocity of the body's origin in world co-ordinates.
+	b2Vec2 linearVelocity;
+
+	/// The angular velocity of the body.
+	float32 angularVelocity;
+
+	/// Linear damping is use to reduce the linear velocity. The damping parameter
+	/// can be larger than 1.0f but the damping effect becomes sensitive to the
+	/// time step when the damping parameter is large.
+	float32 linearDamping;
+
+	/// Angular damping is use to reduce the angular velocity. The damping parameter
+	/// can be larger than 1.0f but the damping effect becomes sensitive to the
+	/// time step when the damping parameter is large.
+	float32 angularDamping;
+
+	/// Set this flag to false if this body should never fall asleep. Note that
+	/// this increases CPU usage.
+	bool allowSleep;
+
+	/// Is this body initially awake or sleeping?
+	bool awake;
+
+	/// Should this body be prevented from rotating? Useful for characters.
+	bool fixedRotation;
+
+	/// Is this a fast moving body that should be prevented from tunneling through
+	/// other moving bodies? Note that all bodies are prevented from tunneling through
+	/// kinematic and static bodies. This setting is only considered on dynamic bodies.
+	/// @warning You should use this flag sparingly since it increases processing time.
+	bool bullet;
+
+	/// Does this body start out active?
+	bool active;
+
+	/// Use this to store application specific body data.
+	void* userData;
+
+	/// Experimental: scales the inertia tensor.
+	float32 inertiaScale;
+};
+
+/// A rigid body. These are created via b2World::CreateBody.
+class b2Body
+{
+public:
+	/// Creates a fixture and attach it to this body. Use this function if you need
+	/// to set some fixture parameters, like friction. Otherwise you can create the
+	/// fixture directly from a shape.
+	/// If the density is non-zero, this function automatically updates the mass of the body.
+	/// Contacts are not created until the next time step.
+	/// @param def the fixture definition.
+	/// @warning This function is locked during callbacks.
+	b2Fixture* CreateFixture(const b2FixtureDef* def);
+
+	/// Creates a fixture from a shape and attach it to this body.
+	/// This is a convenience function. Use b2FixtureDef if you need to set parameters
+	/// like friction, restitution, user data, or filtering.
+	/// If the density is non-zero, this function automatically updates the mass of the body.
+	/// @param shape the shape to be cloned.
+	/// @param density the shape density (set to zero for static bodies).
+	/// @warning This function is locked during callbacks.
+	b2Fixture* CreateFixture(const b2Shape* shape, float32 density);
+
+	/// Destroy a fixture. This removes the fixture from the broad-phase and
+	/// destroys all contacts associated with this fixture. This will
+	/// automatically adjust the mass of the body if the body is dynamic and the
+	/// fixture has positive density.
+	/// All fixtures attached to a body are implicitly destroyed when the body is destroyed.
+	/// @param fixture the fixture to be removed.
+	/// @warning This function is locked during callbacks.
+	void DestroyFixture(b2Fixture* fixture);
+	
+	/// 
